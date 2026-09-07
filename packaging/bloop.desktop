@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Bloop
+Comment=Soundboard with a native virtual audio cable
+Exec=@ROOT@/packaging/bloop
+Path=@ROOT@
+Icon=bloop
+Terminal=false
+Categories=AudioVideo;Audio;
+StartupNotify=true
+StartupWMClass=bloop

@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Bloop
+Comment=Keep the soundboard running after login
+Exec=@ROOT@/packaging/bloop --tray
+Path=@ROOT@
+Icon=bloop
+Terminal=false
+Categories=AudioVideo;Audio;
+StartupNotify=false
+X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Delay=3
+Hidden=false
