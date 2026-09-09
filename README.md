@@ -17,15 +17,17 @@ Windows Soundpad + VB-Cable and macOS Core Audio routing are out of scope.
 
 ## Requirements
 
+Install these on the host first. `setup.py` installs PySide6 into `.venv`; it does **not** install Python for you.
+
 - Linux (see above)
-- Python 3.10+
-- [PySide6](https://pypi.org/project/PySide6/) 6.5+
+- **Python 3.10+** (`python3 --version`), from your distro packages
+- [PySide6](https://pypi.org/project/PySide6/) 6.5+ (pulled into `.venv` by setup)
 - `pactl` and `paplay` (PipeWire-pulse or PulseAudio)
 
 Optional:
 
-- [`ffmpeg`](https://ffmpeg.org/) or [`mpv`](https://mpv.io/) — MP3, M4A, AAC, Opus, and other compressed formats (WAV / FLAC / OGG play through `paplay` alone)
-- **PopStream** — Stream Deck keys for the board
+- [`ffmpeg`](https://ffmpeg.org/) or [`mpv`](https://mpv.io/): MP3, M4A, AAC, Opus, and other compressed formats (WAV / FLAC / OGG play through `paplay` alone)
+- **PopStream**: Stream Deck keys for the board
 
 ## Install
 
@@ -35,7 +37,7 @@ From this directory:
 python3 setup.py
 ```
 
-That is the first-run installer (not setuptools — package metadata is in `pyproject.toml`). It:
+That is the first-run installer (not setuptools; package metadata is in `pyproject.toml`). It:
 
 - installs PySide6 into `.venv`
 - writes the app-menu launcher and icons for **this checkout**
@@ -47,7 +49,7 @@ Then:
 python3 run.py
 ```
 
-Or open **Bloop** from the app menu. After login it starts hidden in the tray — look for the tray icon, or launch again to raise the window (or to play / stop / toggle the cable if you pass those flags). Closing the window hides to the tray so the board and cable keep working. Quit from the tray menu.
+Or open **Bloop** from the app menu. After login it starts hidden in the tray. Look for the tray icon, or launch again to raise the window (or to play / stop / toggle the cable if you pass those flags). Closing the window hides to the tray so the board and cable keep working. Quit from the tray menu.
 
 Skip the login entry if you prefer:
 
@@ -59,7 +61,7 @@ python3 setup.py --no-autostart
 
 ## Use
 
-- **Import** / **Folder** — add clips (`mp3`, `wav`, `ogg`, `flac`, `m4a`, `aac`, `opus`, `wma`). Drag-and-drop onto the table also works.
+- **Import** / **Folder**: add clips (`mp3`, `wav`, `ogg`, `flac`, `m4a`, `aac`, `opus`, `wma`). Drag-and-drop onto the table also works.
 - **Categories** on the left group the library. Sounds stay in Uncategorized if you delete a category.
 - **Double-click** a row (or Enter) to play. Space or **Stop** / Escape stops everything. Delete removes the selected clip.
 - Right-click a row for Play, Preview (speakers only), Stop this, Delete.
@@ -128,13 +130,13 @@ Local JSON on `127.0.0.1:17380` (port is written to `ipc.json` if that bind is t
 
 | Method | Path | Body |
 | --- | --- | --- |
-| GET | `/v1/health`, `/v1/status` | — |
-| GET | `/v1/library`, `/v1/sounds` | — |
-| POST | `/v1/play` | `{"id": "…"}` or `{"name": "…"}`; optional `preview`, `random`, `category_id` |
-| POST | `/v1/stop` | `{}` or `{"id": "…"}` |
+| GET | `/v1/health`, `/v1/status` | (none) |
+| GET | `/v1/library`, `/v1/sounds` | (none) |
+| POST | `/v1/play` | `{"id": "..."}` or `{"name": "..."}`; optional `preview`, `random`, `category_id` |
+| POST | `/v1/stop` | `{}` or `{"id": "..."}` |
 | POST | `/v1/cable` | `{}` to toggle, or `{"enabled": true}` |
 | POST | `/v1/volume` | `{"level": 80}` or `{"step": 5}` |
-| POST | `/v1/raise` | — |
+| POST | `/v1/raise` | (none) |
 
 ## Data
 
