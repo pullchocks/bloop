@@ -11,7 +11,7 @@ It is **not Pop!_OS-only**. It was developed on Pop!_OS, but it should run on an
 - Python 3.10+ and PySide6
 - PipeWire (with the Pulse compatibility layer) or PulseAudio, including `pactl` and `paplay`
 
-That includes typical Ubuntu, Debian, Fedora, and Arch setups. The virtual cable is Pulse/PipeWire modules (`module-null-sink`, `module-loopback`, `module-remap-source`), not a Pop!_OS feature. The `.desktop` launcher and taskbar icon follow the freedesktop spec (GNOME, COSMIC, KDE, and similar).
+That includes typical Ubuntu, Debian, Fedora, Arch, and Omarchy setups. The virtual cable is Pulse/PipeWire modules (`module-null-sink`, `module-loopback`, `module-remap-source`), not a Pop!_OS feature. The `.desktop` launcher and tray icon follow the freedesktop StatusNotifier / app-menu specs (GNOME, COSMIC, KDE, Hyprland, and similar).
 
 Windows Soundpad + VB-Cable and macOS Core Audio routing are out of scope.
 
@@ -47,7 +47,7 @@ Then:
 python3 run.py
 ```
 
-Or open **Bloop** from the app menu. After login it starts hidden in the tray. A second launch raises the existing window (or plays / stops / toggles the cable if you pass those flags). Closing the window hides to the tray so the board and cable keep working. Quit from the tray menu.
+Or open **Bloop** from the app menu. After login it starts hidden in the tray — look for the tray icon, or launch again to raise the window (or to play / stop / toggle the cable if you pass those flags). Closing the window hides to the tray so the board and cable keep working. Quit from the tray menu.
 
 Skip the login entry if you prefer:
 
