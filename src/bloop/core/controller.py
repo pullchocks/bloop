@@ -55,9 +55,13 @@ class Controller(QObject):
         return dict(self._settings)
 
     def update_settings(self, **values: Any) -> None:
+        rebuild_keys = {"mix_mic", "mic_source", "set_default_mic"}
+        rebuild = self.cable.is_up() and any(key in values for key in rebuild_keys)
         self._settings.update(values)
         save_settings(self._settings)
         self._apply_settings()
+        if rebuild:
+            self.enable_cable(rebuild=True)
         self.settings_changed.emit()
         self.cable_changed.emit()
         self.playback_changed.emit()
@@ -148,10 +152,12 @@ class Controller(QObject):
     def stop_all(self) -> None:
         self.player.stop_all()
 
-    def enable_cable(self) -> CableStatus:
+    def enable_cable(self, rebuild: bool = False) -> CableStatus:
         status = self.cable.enable(
             mic_source=str(self._settings.get("mic_source") or ""),
             set_default_mic=bool(self._settings.get("set_default_mic", False)),
+            mix_mic=bool(self._settings.get("mix_mic", True)),
+            rebuild=rebuild,
         )
         self.cable_changed.emit()
         if status.error:
@@ -170,7 +176,10 @@ class Controller(QObject):
         return self.set_cable(not self.cable.is_up())
 
     def cable_status(self) -> CableStatus:
-        return self.cable.status(str(self._settings.get("mic_source") or ""))
+        return self.cable.status(
+            str(self._settings.get("mic_source") or ""),
+            mix_mic=bool(self._settings.get("mix_mic", True)),
+        )
 
     def public_status(self) -> dict[str, Any]:
         cable = self.cable_status()
@@ -191,6 +200,7 @@ class Controller(QObject):
                 "sink": cable.sink,
                 "mic": cable.mic,
                 "error": cable.error,
+                "mix_mic": bool(self._settings.get("mix_mic", True)),
             },
         }
 

@@ -71,6 +71,7 @@ Settings:
 - Overlap, replace, or toggle when a new clip starts
 - Copy imported files into the Bloop library (otherwise paths are referenced in place)
 - Enable cable on launch, leave it running after quit, optionally set Bloop Mic as the system default input
+- **Voice + sounds** or **Sounds only** for what Discord hears from Bloop Mic
 
 ## AV Cable
 
@@ -79,12 +80,17 @@ Settings:
 | Device | Role |
 | --- | --- |
 | **Bloop Cable** | Virtual playback sink. Board sounds are played here. |
-| **Bloop Mix** | Mix of your real microphone + the cable. |
+| **Bloop Mix** | Mix of board sounds, plus your real mic if Voice + sounds is on. |
 | **Bloop Mic** | Virtual capture source for Discord / voice apps. |
 
-In Discord (or any chat app), set the **input device** to **Bloop Mic**. Keep talking on your real mic; board sounds are mixed in.
+In Discord (or any chat app), set the **input device** to **Bloop Mic**.
 
-Pick the talk mic under Settings → AV Cable. Bloop will not loop its own virtual devices back into the mix.
+Settings → AV Cable has two modes:
+
+- **Voice + sounds** — your real mic is mixed with board clips. People hear you talking and the board.
+- **Sounds only** — board clips only. Your real mic is not sent through Bloop Mic.
+
+Pick the talk mic under Settings → AV Cable when mixing. Bloop will not loop its own virtual devices back into the mix.
 
 ## PopStream
 

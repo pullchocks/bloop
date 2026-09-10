@@ -6,8 +6,12 @@ Creates a VB-Cable style graph:
 * ``bloop_mix`` — mix of the real microphone + the cable monitor
 * ``bloop_mic`` — virtual capture source for Discord / voice chat
 
-Voice apps pick **Bloop Mic** as their input. The user still talks on their
-real mic; Bloop injects board sounds into the same stream.
+Voice apps pick **Bloop Mic** as their input.
+
+Two capture modes:
+
+* **Voice + sounds** — real mic is mixed with board clips (you can talk).
+* **Sounds only** — board clips only; the real mic is not in the cable.
 """
 
 from __future__ import annotations
@@ -33,6 +37,7 @@ class CableStatus:
     mix: str = MIX_SINK
     error: str = ""
     mic_source: str = ""
+    mix_mic: bool = True
 
 
 @dataclass
@@ -49,10 +54,10 @@ class CableManager:
     def is_up(self) -> bool:
         return pulse.sink_exists(CABLE_SINK) and pulse.source_exists(MIC_SOURCE)
 
-    def status(self, mic_source: str = "") -> CableStatus:
+    def status(self, mic_source: str = "", mix_mic: bool = True) -> CableStatus:
         enabled = self.is_up()
         error = ""
-        if enabled and mic_source and not pulse.source_exists(mic_source):
+        if enabled and mix_mic and mic_source and not pulse.source_exists(mic_source):
             error = "Configured microphone is missing"
         elif not pulse.pactl("info")[1] and not enabled:
             error = "PulseAudio / PipeWire is not available"
@@ -61,6 +66,7 @@ class CableManager:
             healthy=enabled and not error,
             error=error,
             mic_source=mic_source,
+            mix_mic=mix_mic,
         )
 
     def real_sources(self) -> list[tuple[str, str]]:
@@ -88,14 +94,22 @@ class CableManager:
         sources = self.real_sources()
         return sources[0][0] if sources else ""
 
-    def enable(self, mic_source: str = "", set_default_mic: bool = False) -> CableStatus:
-        if self.is_up():
-            status = self.status(mic_source)
+    def enable(
+        self,
+        mic_source: str = "",
+        set_default_mic: bool = False,
+        mix_mic: bool = True,
+        rebuild: bool = False,
+    ) -> CableStatus:
+        if self.is_up() and not rebuild:
+            status = self.status(mic_source, mix_mic=mix_mic)
             if set_default_mic:
                 pulse.pactl("set-default-source", MIC_SOURCE)
             return status
+        if self.is_up() and rebuild:
+            self.disable()
 
-        mic = self.resolve_mic(mic_source)
+        mic = self.resolve_mic(mic_source) if mix_mic else ""
         loaded: list[int] = []
 
         cable = pulse.load_module(
@@ -131,7 +145,7 @@ class CableManager:
         if voice:
             loaded.append(voice)
 
-        if mic:
+        if mix_mic and mic:
             talk = pulse.load_module(
                 "module-loopback",
                 f"source={mic}",
@@ -164,14 +178,26 @@ class CableManager:
         time.sleep(0.15)
 
         if not pulse.sink_exists(CABLE_SINK):
-            return CableStatus(enabled=False, healthy=False, error="Could not create Bloop Cable sink", mic_source=mic)
+            return CableStatus(
+                enabled=False,
+                healthy=False,
+                error="Could not create Bloop Cable sink",
+                mic_source=mic,
+                mix_mic=mix_mic,
+            )
         if not pulse.source_exists(MIC_SOURCE):
-            return CableStatus(enabled=False, healthy=False, error="Could not create Bloop Mic source", mic_source=mic)
+            return CableStatus(
+                enabled=False,
+                healthy=False,
+                error="Could not create Bloop Mic source",
+                mic_source=mic,
+                mix_mic=mix_mic,
+            )
 
         if set_default_mic:
             pulse.pactl("set-default-source", MIC_SOURCE)
 
-        return CableStatus(enabled=True, healthy=True, mic_source=mic)
+        return CableStatus(enabled=True, healthy=True, mic_source=mic, mix_mic=mix_mic)
 
     def disable(self) -> CableStatus:
         for module_id in list(self.module_ids):
@@ -182,7 +208,13 @@ class CableManager:
         time.sleep(0.1)
         return self.status()
 
-    def set_enabled(self, enabled: bool, mic_source: str = "", set_default_mic: bool = False) -> CableStatus:
+    def set_enabled(
+        self,
+        enabled: bool,
+        mic_source: str = "",
+        set_default_mic: bool = False,
+        mix_mic: bool = True,
+    ) -> CableStatus:
         if enabled:
-            return self.enable(mic_source=mic_source, set_default_mic=set_default_mic)
+            return self.enable(mic_source=mic_source, set_default_mic=set_default_mic, mix_mic=mix_mic)
         return self.disable()
