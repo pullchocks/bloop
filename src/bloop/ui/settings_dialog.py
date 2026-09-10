@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QPushButton,
     QTabWidget,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -22,8 +23,7 @@ class SettingsDialog(QDialog):
         self.controller = controller
         self.setWindowTitle("Settings")
         self.setModal(False)
-        self.setMinimumWidth(480)
-        self.setMinimumHeight(420)
+        self.setMinimumSize(360, 280)
         outer = QVBoxLayout(self)
         tabs = QTabWidget()
         tabs.addTab(self._playback_page(), "Playback")

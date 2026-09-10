@@ -14,6 +14,8 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMenu,
     QPushButton,
+    QScrollArea,
+    QSizePolicy,
     QSlider,
     QSplitter,
     QStatusBar,
@@ -37,6 +39,7 @@ class MainWindow(QMainWindow):
         self.controller = controller
         self.setWindowTitle("Bloop")
         self.resize(1180, 760)
+        self.setMinimumSize(800, 520)
         self._force_quit = False
         self._settings_dialog: SettingsDialog | None = None
         self.setWindowIcon(application_icon())
@@ -55,18 +58,30 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.banner)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setChildrenCollapsible(False)
         self.categories = CategoryPane(controller)
-        self.categories.setMinimumWidth(180)
+        self.categories.setMinimumWidth(160)
+        self.categories.setMaximumWidth(240)
+        self.categories.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
         self.table = SoundTable(controller)
+        self.table.setMinimumWidth(280)
+        self.table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.inspector = SoundInspector(controller)
-        self.inspector.setMinimumWidth(260)
+        inspector_scroll = QScrollArea()
+        inspector_scroll.setWidgetResizable(True)
+        inspector_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        inspector_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        inspector_scroll.setWidget(self.inspector)
+        inspector_scroll.setMinimumWidth(260)
+        inspector_scroll.setMaximumWidth(360)
+        inspector_scroll.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
         splitter.addWidget(self.categories)
         splitter.addWidget(self.table)
-        splitter.addWidget(self.inspector)
+        splitter.addWidget(inspector_scroll)
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
         splitter.setStretchFactor(2, 0)
-        splitter.setSizes([200, 680, 280])
+        splitter.setSizes([180, 680, 280])
         layout.addWidget(splitter, 1)
 
         status = QStatusBar()
@@ -104,10 +119,10 @@ class MainWindow(QMainWindow):
         row.addSpacing(16)
         self.search = QLineEdit()
         self.search.setPlaceholderText("Search sounds")
-        self.search.setMinimumWidth(180)
+        self.search.setMinimumWidth(160)
+        self.search.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         self.search.textChanged.connect(self._search)
-        row.addWidget(self.search)
-        row.addStretch()
+        row.addWidget(self.search, 1)
         import_btn = QPushButton("Import")
         import_btn.clicked.connect(self._import)
         folder_btn = QPushButton("Folder")
@@ -121,6 +136,7 @@ class MainWindow(QMainWindow):
         self.vol = QSlider(Qt.Orientation.Horizontal)
         self.vol.setRange(0, 150)
         self.vol.setFixedWidth(120)
+        self.vol.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self.vol.valueChanged.connect(lambda v: self.controller.update_settings(master_volume=v))
         self.vol_label = QLabel("100%")
         self.vol_label.setObjectName("muted")
@@ -223,8 +239,12 @@ class MainWindow(QMainWindow):
     def _open_settings(self) -> None:
         if self._settings_dialog is None:
             self._settings_dialog = SettingsDialog(self.controller, self)
-        self._settings_dialog.show()
-        self._settings_dialog.raise_()
+        dialog = self._settings_dialog
+        if dialog.width() < dialog.minimumWidth() or dialog.height() < dialog.minimumHeight():
+            dialog.resize(max(dialog.width(), dialog.minimumWidth()), max(dialog.height(), dialog.minimumHeight()))
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
 
     def _on_theme(self) -> None:
         apply_app_theme()

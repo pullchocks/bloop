@@ -2,4 +2,15 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
 cd "$ROOT"
-exec -a bloop python3 "$ROOT/run.py" "$@"
+
+# Prefer a real interpreter path. Hyprland/uwsm put mise shims first on PATH;
+# `exec -a bloop python3` then invokes the shim with argv0=bloop, and mise
+# errors with "bloop is not a valid shim" before Python starts.
+if [[ -x "$ROOT/.venv/bin/python" ]]; then
+  PYTHON="$ROOT/.venv/bin/python"
+elif [[ -x /usr/bin/python3 ]]; then
+  PYTHON=/usr/bin/python3
+else
+  PYTHON="$(command -v python3)"
+fi
+exec -a bloop "$PYTHON" "$ROOT/run.py" "$@"
