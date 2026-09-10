@@ -4,16 +4,12 @@ A Linux Soundpad: a soundboard that plays clips on your headphones **and** into 
 
 ## Supported platforms
 
-Bloop is a **Linux** app. It is not built for Windows or macOS.
-
-It is **not Pop!_OS-only**. It was developed on Pop!_OS, but it should run on any Linux distro that has:
+Bloop is a **Linux** app (not Windows or macOS). It needs:
 
 - Python 3.10+ and PySide6
 - PipeWire (with the Pulse compatibility layer) or PulseAudio, including `pactl` and `paplay`
 
-That includes typical Ubuntu, Debian, Fedora, Arch, and Omarchy setups. The virtual cable is Pulse/PipeWire modules (`module-null-sink`, `module-loopback`, `module-remap-source`), not a Pop!_OS feature. The `.desktop` launcher and tray icon follow the freedesktop StatusNotifier / app-menu specs (GNOME, COSMIC, KDE, Hyprland, and similar).
-
-Windows Soundpad + VB-Cable and macOS Core Audio routing are out of scope.
+The virtual cable uses Pulse/PipeWire modules (`module-null-sink`, `module-loopback`, `module-remap-source`). The `.desktop` launcher and tray icon follow the freedesktop StatusNotifier / app-menu specs (GNOME, COSMIC, KDE, Hyprland, and similar).
 
 ## Requirements
 
