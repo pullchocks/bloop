@@ -8,10 +8,11 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from PySide6.QtCore import QObject, QTimer, Signal
+from PySide6.QtCore import QObject, QRunnable, QThreadPool, QTimer, Signal
 
 from bloop.core.cable import CABLE_SINK
 from bloop.core.library import Sound
+from bloop.core.loudness import DEFAULT_TARGET_DB, LoudnessCache
 from bloop.core.pulse import default_sink, run_bin
 
 NATIVE = {".wav", ".flac", ".ogg", ".oga"}
@@ -105,6 +106,17 @@ class Voice:
     preview: bool = False
 
 
+class _ProbeTask(QRunnable):
+    def __init__(self, cache: LoudnessCache, path: str) -> None:
+        super().__init__()
+        self.setAutoDelete(True)
+        self._cache = cache
+        self._path = path
+
+    def run(self) -> None:
+        self._cache.levels_for(self._path)
+
+
 class Player(QObject):
     changed = Signal()
     finished = Signal(str)
@@ -117,10 +129,20 @@ class Player(QObject):
         self.send_to_voice = True
         self.local_sink = ""
         self.overlap = "overlap"
+        self.normalize_loudness = True
+        self.loudness_target = DEFAULT_TARGET_DB
+        self._loudness = LoudnessCache()
+        self._probe_pool = QThreadPool(self)
+        self._probe_pool.setMaxThreadCount(1)
         self._poll = QTimer(self)
         self._poll.setInterval(250)
         self._poll.timeout.connect(self._reap)
         self._poll.start()
+
+    def enqueue_probe(self, path: str) -> None:
+        if not path or not shutil.which("ffmpeg"):
+            return
+        self._probe_pool.start(_ProbeTask(self._loudness, path))
 
     def playing(self) -> list[dict]:
         return [{"id": voice.sound_id, "name": voice.name, "preview": voice.preview} for voice in self.voices]
@@ -154,6 +176,9 @@ class Player(QObject):
             self.stop_all()
 
         volume = int(self.master_volume * max(0, min(150, sound.volume)) / 100)
+        gain_db = 0.0
+        if self.normalize_loudness:
+            gain_db = self._loudness.gain_for(sound.path, self.loudness_target)
         sinks: list[str] = []
         if preview or self.hear_locally:
             sinks.append(self.local_sink or "@DEFAULT_SINK@")
@@ -165,7 +190,7 @@ class Player(QObject):
 
         procs: list[subprocess.Popen] = []
         for sink in sinks:
-            proc = self._play_to(sound.path, sink, volume)
+            proc = self._play_to(sound.path, sink, volume, gain_db)
             if proc is not None:
                 procs.append(proc)
         if not procs:
@@ -174,12 +199,24 @@ class Player(QObject):
         self.changed.emit()
         return True
 
-    def _play_to(self, path: str, sink: str, volume: int) -> subprocess.Popen | None:
+    def _play_to(self, path: str, sink: str, volume: int, gain_db: float = 0.0) -> subprocess.Popen | None:
         target = default_sink() if sink in {"", "@DEFAULT_SINK@"} else sink
         if not target:
             target = sink or "@DEFAULT_SINK@"
+        use_gain = abs(gain_db) >= 0.15
         vol = str(_pulse_volume(volume))
         suffix = Path(path).suffix.lower()
+        if use_gain and shutil.which("ffmpeg") and shutil.which("paplay"):
+            filt = f"volume={gain_db:.2f}dB"
+            command = (
+                "ffmpeg -hide_banner -loglevel error -nostdin "
+                f"-i {shlex.quote(path)} -ac 2 -ar 48000 -af {shlex.quote(filt)} -f wav - | "
+                f"paplay --device={shlex.quote(target)} --volume={vol}"
+            )
+            return _spawn(["bash", "-lc", command])
+        if use_gain:
+            linear = 10 ** (gain_db / 20.0)
+            vol = str(_pulse_volume(max(0, min(150, int(volume * linear)))))
         if suffix in NATIVE and shutil.which("paplay"):
             return _spawn(["paplay", f"--device={target}", f"--volume={vol}", path])
         if shutil.which("ffmpeg") and shutil.which("paplay"):
@@ -190,16 +227,17 @@ class Player(QObject):
             )
             return _spawn(["bash", "-lc", command])
         if shutil.which("mpv"):
-            return _spawn(
-                [
-                    "mpv",
-                    "--no-video",
-                    "--really-quiet",
-                    f"--volume={min(150, volume)}",
-                    f"--audio-device=pulse/{target}",
-                    path,
-                ]
-            )
+            command = [
+                "mpv",
+                "--no-video",
+                "--really-quiet",
+                f"--volume={min(150, volume)}",
+                f"--audio-device=pulse/{target}",
+            ]
+            if use_gain:
+                command.append(f"--af=lavfi=[volume={gain_db:.2f}dB]")
+            command.append(path)
+            return _spawn(command)
         if shutil.which("pw-play"):
             return _spawn(["pw-play", f"--target={target}", path])
         return None

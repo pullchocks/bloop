@@ -198,12 +198,18 @@ class MainWindow(QMainWindow):
         QApplication.quit()
 
     def closeEvent(self, event) -> None:
-        if self._force_quit or not self.tray.isVisible():
-            self.controller.shutdown()
+        if self._force_quit:
             event.accept()
             return
-        event.ignore()
-        self.hide()
+        close_to_tray = bool(self.controller.settings().get("close_to_tray", True))
+        if close_to_tray and self.tray.isVisible():
+            event.ignore()
+            self.hide()
+            return
+        self._force_quit = True
+        self.controller.shutdown()
+        event.accept()
+        QApplication.quit()
 
     def _search(self, text: str) -> None:
         self.table.query = text

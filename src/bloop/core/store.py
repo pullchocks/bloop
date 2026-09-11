@@ -48,6 +48,10 @@ def cable_state_path() -> Path:
     return data_dir() / "cable-state.json"
 
 
+def loudness_path() -> Path:
+    return data_dir() / "loudness.json"
+
+
 def load_json(path: Path, fallback: dict | None = None) -> dict:
     if not path.is_file():
         return dict(fallback or {})

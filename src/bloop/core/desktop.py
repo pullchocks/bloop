@@ -13,6 +13,39 @@ from bloop.core.icons import launcher_pixmap
 DESKTOP_ID = "bloop"
 
 
+def project_root() -> Path:
+    return Path(__file__).resolve().parent.parent.parent.parent
+
+
+def autostart_path() -> Path:
+    return Path.home() / ".config" / "autostart" / f"{DESKTOP_ID}.desktop"
+
+
+def autostart_installed() -> bool:
+    return autostart_path().is_file()
+
+
+def set_autostart(enabled: bool, root: Path | None = None) -> Path | None:
+    path = autostart_path()
+    if not enabled:
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            pass
+        except OSError:
+            return path
+        return None
+    root = (root or project_root()).resolve()
+    template = root / "packaging" / "bloop-autostart.desktop"
+    try:
+        text = template.read_text(encoding="utf-8").replace("@ROOT@", str(root))
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+        return path
+    except OSError:
+        return None
+
+
 def _home_applications() -> Path:
     path = Path.home() / ".local" / "share" / "applications"
     path.mkdir(parents=True, exist_ok=True)

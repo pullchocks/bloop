@@ -22,7 +22,7 @@ Install these on the host first. `setup.py` installs PySide6 into `.venv`; it do
 
 Optional:
 
-- [`ffmpeg`](https://ffmpeg.org/) or [`mpv`](https://mpv.io/): MP3, M4A, AAC, Opus, and other compressed formats (WAV / FLAC / OGG play through `paplay` alone)
+- [`ffmpeg`](https://ffmpeg.org/) or [`mpv`](https://mpv.io/): MP3, M4A, AAC, Opus, and other compressed formats (WAV / FLAC / OGG play through `paplay` alone). `ffmpeg` is also used to even out clip loudness
 - **PopStream**: Stream Deck keys for the board
 
 ## Install
@@ -37,7 +37,8 @@ That is the first-run installer (not setuptools; package metadata is in `pyproje
 
 - installs PySide6 into `.venv`
 - writes the app-menu launcher and icons for **this checkout**
-- writes a login autostart entry so Bloop starts in the tray
+
+Start at login is off unless you enable it in Settings, or pass `--autostart`.
 
 Then:
 
@@ -45,13 +46,9 @@ Then:
 python3 run.py
 ```
 
-Or open **Bloop** from the app menu. After login it starts hidden in the tray. Look for the tray icon, or launch again to raise the window (or to play / stop / toggle the cable if you pass those flags). Closing the window hides to the tray so the board and cable keep working. Quit from the tray menu.
+Or open **Bloop** from the app menu. Closing the window hides to the tray by default so the board and cable keep working. Quit from the tray menu, or turn off **Keep Bloop in the tray when the window is closed** if you want the window close button to exit.
 
-Skip the login entry if you prefer:
-
-```bash
-python3 setup.py --no-autostart
-```
+Start Bloop at login from Settings if you want it in the tray after you log in (`python3 setup.py --autostart` does the same).
 
 `run.py` also uses a sibling `../popstream/.venv` if this folder has no local install yet.
 
@@ -66,9 +63,12 @@ python3 setup.py --no-autostart
 
 Settings:
 
+- Keep Bloop in the tray when the window is closed (on by default)
+- Start Bloop when I log in (off by default; starts hidden in the tray)
 - Play on headphones / speakers
 - Send to Bloop Cable (voice chat)
 - Overlap, replace, or toggle when a new clip starts
+- Even out clip loudness (on by default): quiet clips are boosted and hot ones turned down so they play at a similar level. Target can be Quieter, Balanced, or Louder. Needs `ffmpeg` to measure each clip
 - Copy imported files into the Bloop library (otherwise paths are referenced in place)
 - Enable cable on launch, leave it running after quit, optionally set Bloop Mic as the system default input
 - **Voice + sounds** or **Sounds only** for what Discord hears from Bloop Mic
@@ -111,7 +111,7 @@ The plugin reads `~/.local/share/Bloop/ipc.json`, or `BLOOP_URL`.
 
 ## Autostart
 
-`setup.py` writes `~/.config/autostart/bloop.desktop` (Exec: `packaging/bloop --tray`). Remove that file, or pass `--no-autostart` on setup, to stop launching at login.
+Settings → General → **Start Bloop when I log in** writes `~/.config/autostart/bloop.desktop` (Exec: `packaging/bloop --tray`). That checkbox is off by default. `python3 setup.py --autostart` writes the same file; `--no-autostart` removes it.
 
 ## CLI
 

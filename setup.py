@@ -22,18 +22,11 @@ ROOT = Path(__file__).resolve().parent
 VENV = ROOT / ".venv"
 LAUNCHER = ROOT / "packaging" / "bloop"
 APP_DESKTOP = Path.home() / ".local/share/applications/bloop.desktop"
-AUTOSTART_DESKTOP = Path.home() / ".config/autostart/bloop.desktop"
 
 
 def _run(command: list[str], **kwargs) -> None:
     print("+", " ".join(command))
     subprocess.run(command, check=True, **kwargs)
-
-
-def _write(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
-    print(f"wrote {path}")
 
 
 def install_deps() -> None:
@@ -69,12 +62,6 @@ def write_launcher() -> None:
     update = shutil.which("update-desktop-database")
     if update:
         subprocess.run([update, str(APP_DESKTOP.parent)], check=False)
-
-
-def write_autostart() -> None:
-    text = (ROOT / "packaging" / "bloop-autostart.desktop").read_text(encoding="utf-8")
-    text = text.replace("@ROOT@", str(ROOT.resolve()))
-    _write(AUTOSTART_DESKTOP, text)
 
 
 def check_audio() -> None:
@@ -113,8 +100,21 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     parser = argparse.ArgumentParser(description="Install Bloop on this Linux machine.")
-    parser.add_argument("--no-autostart", action="store_true", help="Skip the login autostart entry.")
+    parser.add_argument(
+        "--autostart",
+        action="store_true",
+        help="Write a login autostart entry (same as Settings → Start Bloop when I log in).",
+    )
+    parser.add_argument(
+        "--no-autostart",
+        action="store_true",
+        help="Remove the login autostart entry if it exists.",
+    )
     args = parser.parse_args(argv)
+
+    if args.autostart and args.no_autostart:
+        print("Use only one of --autostart or --no-autostart.", file=sys.stderr)
+        return 2
 
     if os.geteuid() == 0:
         print("Do not run setup.py as root.", file=sys.stderr)
@@ -123,16 +123,26 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Installing Bloop from {ROOT}")
     install_deps()
     write_launcher()
-    if args.no_autostart:
-        print("Skipped autostart.")
+    from bloop.core.desktop import set_autostart
+
+    if args.autostart:
+        path = set_autostart(True, ROOT)
+        if path:
+            print(f"wrote {path}")
+        else:
+            print("Could not write the login autostart entry.", file=sys.stderr)
+    elif args.no_autostart:
+        set_autostart(False, ROOT)
+        print("Removed autostart.")
     else:
-        write_autostart()
+        print("Skipped autostart. Enable it later in Settings if you want Bloop at login.")
     check_audio()
 
     print()
     print("Done. Launch with:")
     print("  python3 run.py")
-    print("Or open Bloop from the app menu. After login it starts in the tray.")
+    print("Or open Bloop from the app menu.")
+    print("Start at login is off unless you enable it in Settings.")
     return 0
 
 

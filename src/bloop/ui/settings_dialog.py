@@ -33,6 +33,7 @@ class SettingsDialog(QDialog):
         outer.setContentsMargins(12, 12, 12, 12)
         outer.setSpacing(10)
         tabs = QTabWidget()
+        tabs.addTab(self._general_page(), "General")
         tabs.addTab(self._playback_page(), "Playback")
         tabs.addTab(self._cable_page(), "AV Cable")
         tabs.addTab(self._appearance_page(), "Appearance")
@@ -46,6 +47,30 @@ class SettingsDialog(QDialog):
         self._sync()
         controller.settings_changed.connect(self._sync)
         controller.cable_changed.connect(self._sync_cable)
+
+    def _general_page(self) -> QWidget:
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(10)
+        self.close_to_tray = QCheckBox("Keep Bloop in the tray when the window is closed")
+        self.close_to_tray.setToolTip("The board and cable keep running. Quit from the tray menu to exit fully.")
+        self.close_to_tray.toggled.connect(lambda v: self.controller.update_settings(close_to_tray=v))
+        close_hint = QLabel("On by default. Turn this off if closing the window should quit Bloop.")
+        close_hint.setObjectName("hint")
+        close_hint.setWordWrap(True)
+        self.start_on_login = QCheckBox("Start Bloop when I log in")
+        self.start_on_login.setToolTip("Launch in the tray after login. Off by default.")
+        self.start_on_login.toggled.connect(lambda v: self.controller.update_settings(start_on_login=v))
+        start_hint = QLabel("Off by default. When on, Bloop starts hidden in the tray after you log in.")
+        start_hint.setObjectName("hint")
+        start_hint.setWordWrap(True)
+        layout.addWidget(self.close_to_tray)
+        layout.addWidget(close_hint)
+        layout.addWidget(self.start_on_login)
+        layout.addWidget(start_hint)
+        layout.addStretch(1)
+        return page
 
     def _playback_page(self) -> QWidget:
         page = QWidget()
@@ -65,6 +90,16 @@ class SettingsDialog(QDialog):
         )
         self.copy_files = QCheckBox("Copy imported files into the Bloop library")
         self.copy_files.toggled.connect(lambda v: self.controller.update_settings(copy_imports=v))
+        self.normalize = QCheckBox("Even out clip loudness")
+        self.normalize.setToolTip(
+            "Boost quiet clips and turn down hot ones so they play at a similar level."
+        )
+        self.normalize.toggled.connect(self._save_normalize)
+        self.loudness_target = QComboBox()
+        self.loudness_target.addItem("Quieter", -22)
+        self.loudness_target.addItem("Balanced", -18)
+        self.loudness_target.addItem("Louder", -14)
+        self.loudness_target.currentIndexChanged.connect(self._save_loudness_target)
         self.headphones = QComboBox()
         self.headphones.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.headphones.currentIndexChanged.connect(self._save_headphones)
@@ -73,6 +108,8 @@ class SettingsDialog(QDialog):
         layout.addRow(self.hear)
         layout.addRow(self.voice)
         layout.addRow("When playing", self.overlap)
+        layout.addRow(self.normalize)
+        layout.addRow("Loudness target", self.loudness_target)
         layout.addRow("Headphones", self.headphones)
         layout.addRow("", refresh)
         layout.addRow(self.copy_files)
@@ -207,6 +244,18 @@ class SettingsDialog(QDialog):
     def _save_headphones(self) -> None:
         self.controller.update_settings(headphones=self.headphones.currentData() or "")
 
+    def _save_normalize(self, on: bool) -> None:
+        self.loudness_target.setEnabled(on)
+        self.controller.update_settings(normalize_loudness=on)
+
+    def _save_loudness_target(self) -> None:
+        value = self.loudness_target.currentData()
+        try:
+            target = float(value)
+        except (TypeError, ValueError):
+            target = -18.0
+        self.controller.update_settings(loudness_target=target)
+
     def _save_mic(self) -> None:
         self.controller.update_settings(mic_source=self.mic.currentData() or "")
 
@@ -238,6 +287,9 @@ class SettingsDialog(QDialog):
             (self.hear, "hear_locally", True),
             (self.voice, "send_to_voice", True),
             (self.copy_files, "copy_imports", False),
+            (self.normalize, "normalize_loudness", True),
+            (self.close_to_tray, "close_to_tray", True),
+            (self.start_on_login, "start_on_login", False),
             (self.cable_on_start, "cable_on_start", True),
             (self.keep_cable, "keep_cable", True),
             (self.default_mic, "set_default_mic", False),
@@ -256,6 +308,21 @@ class SettingsDialog(QDialog):
         index = self.overlap.findData(settings.get("overlap") or "overlap")
         self.overlap.setCurrentIndex(index if index >= 0 else 0)
         self.overlap.blockSignals(False)
+        self.loudness_target.blockSignals(True)
+        try:
+            target = float(settings.get("loudness_target", -18))
+        except (TypeError, ValueError):
+            target = -18.0
+        index = self.loudness_target.findData(int(round(target)))
+        if index < 0:
+            closest = min(
+                range(self.loudness_target.count()),
+                key=lambda i: abs(float(self.loudness_target.itemData(i)) - target),
+            )
+            index = closest
+        self.loudness_target.setCurrentIndex(index if index >= 0 else 1)
+        self.loudness_target.blockSignals(False)
+        self.loudness_target.setEnabled(bool(settings.get("normalize_loudness", True)))
         self.theme_color.set_color(str(settings.get("accent") or ""))
         self.theme_text.set_color(str(settings.get("text") or ""))
         self._fill_devices()

@@ -12,6 +12,7 @@ from bloop import __version__
 from bloop.core.cable import CableManager, CableStatus
 from bloop.core.library import UNCATEGORIZED, Library, Sound
 from bloop.core.player import Player, format_duration, probe_duration_ms
+from bloop.core.desktop import autostart_installed, project_root, set_autostart
 from bloop.core.store import load_settings, save_settings
 from bloop.ui.theme import DEFAULT_ACCENT, DEFAULT_TEXT, apply_accent, apply_text
 
@@ -29,6 +30,7 @@ class Controller(QObject):
         self.player = Player(self)
         self.cable = CableManager()
         self._settings = load_settings()
+        self._sync_autostart_setting()
         self._apply_settings()
         self._hotkeys: list[QShortcut] = []
         self._hotkey_host: QWidget | None = None
@@ -38,9 +40,17 @@ class Controller(QObject):
         self.player.changed.connect(self.playback_changed.emit)
         if self._settings.get("cable_on_start", True):
             QTimer.singleShot(250, self.enable_cable)
+        QTimer.singleShot(400, self._prefetch_loudness)
 
     def log(self, message: str) -> None:
         self.log_message.emit(message)
+
+    def _sync_autostart_setting(self) -> None:
+        if "start_on_login" not in self._settings:
+            self._settings["start_on_login"] = autostart_installed()
+            save_settings(self._settings)
+            return
+        set_autostart(bool(self._settings.get("start_on_login")), project_root())
 
     def _apply_settings(self) -> None:
         apply_accent(str(self._settings.get("accent") or DEFAULT_ACCENT))
@@ -50,6 +60,11 @@ class Controller(QObject):
         self.player.send_to_voice = bool(self._settings.get("send_to_voice", True))
         self.player.local_sink = str(self._settings.get("headphones") or "")
         self.player.overlap = str(self._settings.get("overlap") or "overlap")
+        self.player.normalize_loudness = bool(self._settings.get("normalize_loudness", True))
+        try:
+            self.player.loudness_target = float(self._settings.get("loudness_target", -18))
+        except (TypeError, ValueError):
+            self.player.loudness_target = -18.0
 
     def settings(self) -> dict[str, Any]:
         return dict(self._settings)
@@ -60,6 +75,8 @@ class Controller(QObject):
         self._settings.update(values)
         save_settings(self._settings)
         self._apply_settings()
+        if "start_on_login" in values:
+            set_autostart(bool(self._settings.get("start_on_login")), project_root())
         if rebuild:
             self.enable_cable(rebuild=True)
         self.settings_changed.emit()
@@ -92,11 +109,18 @@ class Controller(QObject):
             shortcut.activated.connect(lambda sid=sound_id: self.play(sid))
             self._hotkeys.append(shortcut)
 
+    def _prefetch_loudness(self) -> None:
+        if not self.player.normalize_loudness:
+            return
+        for sound in self.library.sounds:
+            self.player.enqueue_probe(sound.path)
+
     def import_files(self, paths: list[Path], category_id: str = UNCATEGORIZED, copy: bool = False) -> int:
         added = self.library.import_paths(paths, category_id=category_id, copy=copy)
         for sound in added:
             if sound.duration_ms <= 0:
                 sound.duration_ms = probe_duration_ms(sound.path)
+            self.player.enqueue_probe(sound.path)
         self.schedule_save()
         self.rebuild_hotkeys()
         self.library_changed.emit()
