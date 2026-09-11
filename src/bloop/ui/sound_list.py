@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QMenu,
     QMessageBox,
     QPushButton,
+    QSizePolicy,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -40,6 +41,7 @@ class CategoryPane(QWidget):
         self.list.currentItemChanged.connect(self._emit)
         layout.addWidget(self.list, 1)
         row = QHBoxLayout()
+        row.setSpacing(4)
         add = QPushButton("Add")
         add.setObjectName("flat")
         add.clicked.connect(self._add)
@@ -49,6 +51,9 @@ class CategoryPane(QWidget):
         remove = QPushButton("Delete")
         remove.setObjectName("flat")
         remove.clicked.connect(self._remove)
+        for btn in (add, rename, remove):
+            btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+            btn.setMinimumWidth(btn.fontMetrics().horizontalAdvance(btn.text()) + 16)
         row.addWidget(add)
         row.addWidget(rename)
         row.addWidget(remove)
